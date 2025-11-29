@@ -1,0 +1,5 @@
+{
+  "name": "Gestor de Atendimento Pro",
+  "description": "Painel de gerenciamento de fila de atendentes em tempo real com integração Supabase e ordenação por prioridade.",
+  "requestFramePermissions": []
+}
