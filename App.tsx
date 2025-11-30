@@ -23,12 +23,14 @@ import {
   Moon,
   Sun,
   LogOut,
-  Clock
+  Clock,
+  Coffee
 } from 'lucide-react';
 import { Agent, ToastMessage } from './types';
 import { AgentRow } from './components/AgentRow';
 import { AgentForm } from './components/AgentForm';
 import { Login } from './components/Login';
+import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { getSupabase, mockDb } from './services/supabaseClient';
 
 function App() {
@@ -45,6 +47,10 @@ function App() {
   const [activeDragId, setActiveDragId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Delete Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
 
   // Admin Check
   const isAdmin = currentUserEmail === 'admin@admin.com';
@@ -205,9 +211,20 @@ function App() {
     setEditingAgent(null);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Tem certeza que deseja remover este atendente?')) return;
+  // Opens the delete confirmation modal
+  const handleOpenDeleteModal = (id: number) => {
+    const agent = agents.find(a => a.id === id);
+    if (agent) {
+      setAgentToDelete(agent);
+      setDeleteModalOpen(true);
+    }
+  };
 
+  // Executed after confirmation
+  const confirmDelete = async () => {
+    if (!agentToDelete) return;
+    const id = agentToDelete.id;
+    
     const supabase = getSupabase();
     if (supabase) {
       // 1. Delete
@@ -223,7 +240,9 @@ function App() {
       }
       
       addToast('success', 'Atendente removido.');
-    } 
+    }
+    setDeleteModalOpen(false);
+    setAgentToDelete(null);
   };
 
   // --- Status & Attendance Logic (Combined) ---
@@ -392,10 +411,13 @@ function App() {
   }
 
   // Filter lists
+  
+  // 1. Fila Ativa: Status=True E Não Atendendo
   let queueAgents = agents.filter(a => a.status === true && !a.em_atendimento);
   if (filterActive) queueAgents = queueAgents.filter(a => a.status === true);
   queueAgents.sort((a, b) => Number(a.posicao_fila) - Number(b.posicao_fila));
 
+  // 2. Em Atendimento: Em Atendimento=True
   const busyAgents = agents
     .filter(a => a.em_atendimento)
     .sort((a, b) => {
@@ -403,6 +425,12 @@ function App() {
       const timeB = b.inicio_atendimento ? new Date(b.inicio_atendimento).getTime() : 0;
       return timeA - timeB;
     });
+
+  // 3. Pausados / Indisponíveis: Status=False E Em Atendimento=False
+  // (Para não sumirem da tela quando desativa o toggle)
+  const pausedAgents = agents
+    .filter(a => a.status === false && !a.em_atendimento)
+    .sort((a, b) => a.id - b.id); // Ordenação padrão por ID ou Nome
 
   return (
     <div className="min-h-screen pb-20 bg-slate-100 dark:bg-slate-900 transition-colors duration-200">
@@ -471,7 +499,7 @@ function App() {
                   key={agent.id} 
                   agent={agent} 
                   isAdmin={isAdmin}
-                  onDelete={handleDelete}
+                  onDelete={handleOpenDeleteModal}
                   onEdit={(a) => { setEditingAgent(a); setIsFormOpen(true); }}
                   onToggleStatus={handleToggleStatus}
                   onFinishAttendance={handleFinishAttendance}
@@ -479,12 +507,39 @@ function App() {
               ))}
               {queueAgents.length === 0 && !loading && (
                 <div className="py-8 text-center text-sm text-slate-400 dark:text-slate-600 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50">
-                  <p>Fila vazia ou todos indisponíveis.</p>
+                  <p>Fila vazia.</p>
                 </div>
               )}
             </div>
           </SortableContext>
           
+          {/* Seção de Indisponíveis (Pausados) - Para não sumirem da tela */}
+          {pausedAgents.length > 0 && !filterActive && (
+             <div className="mt-8 animate-fade-in opacity-80">
+                <div className="flex items-center gap-3 mb-4 px-1">
+                  <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Coffee size={14} className="text-slate-400" /> 
+                    Em Pausa / Indisponíveis
+                  </span>
+                  <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+               </div>
+               <div className="space-y-3 grayscale-[0.5]">
+                 {pausedAgents.map((agent) => (
+                    <AgentRow 
+                      key={agent.id} 
+                      agent={agent} 
+                      isAdmin={isAdmin}
+                      onDelete={handleOpenDeleteModal}
+                      onEdit={(a) => { setEditingAgent(a); setIsFormOpen(true); }}
+                      onToggleStatus={handleToggleStatus}
+                      onFinishAttendance={handleFinishAttendance}
+                    />
+                 ))}
+               </div>
+             </div>
+          )}
+
           {busyAgents.length > 0 && (
             <div className="mt-8 animate-fade-in">
                <div className="flex items-center gap-3 mb-4 px-1">
@@ -501,7 +556,7 @@ function App() {
                       key={agent.id} 
                       agent={agent} 
                       isAdmin={isAdmin}
-                      onDelete={handleDelete}
+                      onDelete={handleOpenDeleteModal}
                       onEdit={(a) => { setEditingAgent(a); setIsFormOpen(true); }}
                       onToggleStatus={handleToggleStatus}
                       onFinishAttendance={handleFinishAttendance}
@@ -532,6 +587,13 @@ function App() {
         onClose={() => { setIsFormOpen(false); setEditingAgent(null); }} 
         onSubmit={handleAddOrEditAgent}
         editingAgent={editingAgent}
+      />
+      
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => { setDeleteModalOpen(false); setAgentToDelete(null); }}
+        onConfirm={confirmDelete}
+        agentName={agentToDelete?.nome || ''}
       />
 
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
