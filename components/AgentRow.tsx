@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Edit2, User, Phone, Lock } from 'lucide-react';
+import { GripVertical, Trash2, Edit2, User, Phone, Lock, Square } from 'lucide-react';
 import { Agent } from '../types';
 import { Switch } from './ui/Switch';
 
@@ -10,16 +10,24 @@ interface AgentRowProps {
   onDelete: (id: number) => void;
   onEdit: (agent: Agent) => void;
   onToggleStatus: (id: number, currentStatus: boolean) => void;
+  onFinishAttendance: (id: number) => void;
   isOverlay?: boolean;
   isAdmin?: boolean;
 }
 
-export const AgentRow: React.FC<AgentRowProps> = ({ agent, onDelete, onEdit, onToggleStatus, isOverlay, isAdmin }) => {
+export const AgentRow: React.FC<AgentRowProps> = ({ 
+  agent, 
+  onDelete, 
+  onEdit, 
+  onToggleStatus, 
+  onFinishAttendance,
+  isOverlay, 
+  isAdmin 
+}) => {
   const isBusy = agent.em_atendimento; // True if handling a client
   const isAvailable = agent.status && !isBusy; // True if waiting
   
   // Drag is only allowed if the agent is fully available (Status True AND Not Busy)
-  // "só muda posição se estiver disponível"
   const isDraggable = isAvailable;
 
   const {
@@ -78,7 +86,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({ agent, onDelete, onEdit, onT
         
         <div className="flex flex-col items-center justify-center min-w-[2.5rem]">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Pos</span>
-          <span className="text-xl font-black text-slate-700 dark:text-slate-200">#{agent.posicao_fila + 1}</span>
+          <span className="text-xl font-black text-slate-700 dark:text-slate-200">#{agent.posicao_fila}</span>
         </div>
       </div>
 
@@ -93,34 +101,48 @@ export const AgentRow: React.FC<AgentRowProps> = ({ agent, onDelete, onEdit, onT
       {/* Status / Client Info Area */}
       <div className="flex-1 pl-0 md:pl-4 md:border-l md:border-slate-200 dark:md:border-slate-700 border-t md:border-t-0 pt-2 md:pt-0 border-slate-200 dark:border-slate-700">
         {isBusy ? (
-          <div className="flex items-center gap-3 animate-fade-in text-red-700 dark:text-red-400">
-            <span className="shrink-0 px-2.5 py-1 rounded-md text-xs font-black bg-red-600 text-white uppercase tracking-wider shadow-sm">
-              Em Atendimento
-            </span>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-sm font-bold">
-              <span className="flex items-center gap-1">
-                <User size={14} className="opacity-75"/> {agent.cliente_nome}
+          <div className="flex items-center justify-between gap-3 animate-fade-in text-red-700 dark:text-red-400">
+            <div className="flex flex-col gap-1">
+              <span className="w-fit px-2.5 py-1 rounded-md text-xs font-black bg-red-600 text-white uppercase tracking-wider shadow-sm">
+                Em Atendimento
               </span>
-              <span className="hidden sm:inline opacity-50">•</span>
-              <span className="flex items-center gap-1 font-mono opacity-80">
-                <Phone size={14} /> {agent.cliente_numero}
-              </span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-sm font-bold mt-1">
+                <span className="flex items-center gap-1">
+                  <User size={14} className="opacity-75"/> {agent.cliente_nome}
+                </span>
+                <span className="hidden sm:inline opacity-50">•</span>
+                <span className="flex items-center gap-1 font-mono opacity-80">
+                  <Phone size={14} /> {agent.cliente_numero}
+                </span>
+              </div>
             </div>
+
+            {/* Finish Button */}
+            <button 
+              onClick={() => onFinishAttendance(agent.id)}
+              className="flex items-center gap-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 px-3 py-2 rounded-lg transition-colors border border-red-200 dark:border-red-800 group"
+              title="Finalizar Atendimento"
+            >
+              <Square size={16} fill="currentColor" className="group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-bold uppercase hidden sm:inline">Finalizar</span>
+            </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-             {agent.status ? (
-               <span className="px-2.5 py-1 rounded-md text-xs font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 uppercase tracking-wider border border-emerald-200 dark:border-emerald-800">
-                 Disponível
-               </span>
-             ) : (
-                <span className="px-2.5 py-1 rounded-md text-xs font-black bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase tracking-wider border border-slate-300 dark:border-slate-600">
-                 Indisponível
-               </span>
-             )}
-             <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-               {agent.status ? 'Aguardando próximo cliente...' : 'Pausa / Fora de serviço'}
-             </span>
+          <div className="flex items-center justify-between gap-3">
+             <div className="flex items-center gap-3">
+                {agent.status ? (
+                  <span className="px-2.5 py-1 rounded-md text-xs font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 uppercase tracking-wider border border-emerald-200 dark:border-emerald-800">
+                    Disponível
+                  </span>
+                ) : (
+                    <span className="px-2.5 py-1 rounded-md text-xs font-black bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase tracking-wider border border-slate-300 dark:border-slate-600">
+                    Indisponível
+                  </span>
+                )}
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-medium hidden sm:inline">
+                  {agent.status ? 'Aguardando próximo cliente...' : 'Pausa / Fora de serviço'}
+                </span>
+             </div>
           </div>
         )}
       </div>
@@ -134,6 +156,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({ agent, onDelete, onEdit, onT
            <Switch 
             checked={agent.status} 
             onChange={() => onToggleStatus(agent.id, agent.status)} 
+            disabled={isBusy}
            />
         </div>
 
