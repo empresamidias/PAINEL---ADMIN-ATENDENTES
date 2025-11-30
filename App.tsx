@@ -42,6 +42,7 @@ function App() {
   // App State
   const [agents, setAgents] = useState<Agent[]>([]);
   const [filterActive, setFilterActive] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(''); // Estado da busca
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [activeDragId, setActiveDragId] = useState<number | null>(null);
@@ -181,6 +182,17 @@ function App() {
     }));
     
     return updates;
+  };
+
+  // Search Helper
+  const matchesSearch = (agent: Agent) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      agent.nome.toLowerCase().includes(term) ||
+      agent.numero.toLowerCase().includes(term) ||
+      (agent.cliente_nome && agent.cliente_nome.toLowerCase().includes(term))
+    );
   };
 
   // --- Actions ---
@@ -408,13 +420,17 @@ function App() {
   // Filter lists
   
   // 1. Fila Ativa: Status=True E Não Atendendo
-  let queueAgents = agents.filter(a => a.status === true && !a.em_atendimento);
+  let queueAgents = agents
+    .filter(a => a.status === true && !a.em_atendimento)
+    .filter(matchesSearch);
+    
   if (filterActive) queueAgents = queueAgents.filter(a => a.status === true);
   queueAgents.sort((a, b) => Number(a.posicao_fila) - Number(b.posicao_fila));
 
   // 2. Em Atendimento: Em Atendimento=True
   const busyAgents = agents
     .filter(a => a.em_atendimento)
+    .filter(matchesSearch)
     .sort((a, b) => {
       const timeA = a.inicio_atendimento ? new Date(a.inicio_atendimento).getTime() : 0;
       const timeB = b.inicio_atendimento ? new Date(b.inicio_atendimento).getTime() : 0;
@@ -425,6 +441,7 @@ function App() {
   // (Para não sumirem da tela quando desativa o toggle)
   const pausedAgents = agents
     .filter(a => a.status === false && !a.em_atendimento)
+    .filter(matchesSearch)
     .sort((a, b) => a.id - b.id); // Ordenação padrão por ID
 
   return (
@@ -466,7 +483,13 @@ function App() {
           <div className="flex items-center gap-3 w-full sm:w-auto">
              <div className="relative flex-1 sm:w-72">
                 <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                <input type="text" placeholder="Buscar atendente..." className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 outline-none shadow-sm transition-all" />
+                <input 
+                  type="text" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar atendente..." 
+                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 outline-none shadow-sm transition-all" 
+                />
              </div>
              <button onClick={fetchAgents} className={`p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all ${loading ? 'animate-spin' : ''}`}>
                <RefreshCw size={18} />
@@ -502,7 +525,7 @@ function App() {
               ))}
               {queueAgents.length === 0 && !loading && (
                 <div className="py-8 text-center text-sm text-slate-400 dark:text-slate-600 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50">
-                  <p>Fila vazia.</p>
+                  <p>{searchTerm ? 'Nenhum atendente encontrado na fila.' : 'Fila vazia.'}</p>
                 </div>
               )}
             </div>
