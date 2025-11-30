@@ -227,7 +227,7 @@ function App() {
     
     const supabase = getSupabase();
     if (supabase) {
-      // 1. Delete
+      // 1. Delete from DB first
       await supabase.from('atendentes').delete().eq('id', id);
       
       // 2. Normalize remaining queue
@@ -245,7 +245,7 @@ function App() {
     setAgentToDelete(null);
   };
 
-  // --- Status & Attendance Logic (Combined) ---
+  // --- Status Logic (Pure Toggle) ---
   
   const handleToggleStatus = async (id: number, currentStatus: boolean) => {
     const supabase = getSupabase();
@@ -257,24 +257,21 @@ function App() {
     const updatesToBatch: any[] = [];
     const newStatus = !currentStatus;
 
-    // SCENARIO 1: Turning OFF (Going Busy or Paused)
-    // SCENARIO 1: Turning OFF (Iniciar atendimento ou Pausar)
+    // SCENARIO 1: Turning OFF (Going to Pause/Unavailable)
     if (newStatus === false) {
-      const clientName = prompt("Iniciar Atendimento? Digite o nome do cliente.\n(Deixe vazio para apenas Pausa)");
-
-      // 1 — Primeiro, garante que o atendente sai da fila imediatamente
       const agentPos = agent.posicao_fila;
 
+      // 1. Set Status to False (Pause), clear Queue Position
       updatesToBatch.push({
         ...agent,
         status: false,
-        em_atendimento: !!clientName,
-        cliente_nome: clientName || null,
-        posicao_fila: 0, // 🔥 AGORA SIM — tira ele da fila ANTES de recalcular
-        inicio_atendimento: clientName ? new Date().toISOString() : null
+        em_atendimento: false,
+        cliente_nome: null,
+        posicao_fila: 0, // Leaves the active queue
+        inicio_atendimento: null
       });
 
-      // 2 — Agora decrementa quem estava ATRÁS dele
+      // 2. Decrement position of everyone who was BEHIND this agent
       const agentsToShift = agents.filter(a =>
           a.status === true &&
           !a.em_atendimento &&
@@ -289,7 +286,6 @@ function App() {
       });
     }
 
-    
     // SCENARIO 2: Turning ON (Becoming Available)
     else {
       const newPos = getNextQueuePosition(agents);
@@ -300,15 +296,14 @@ function App() {
         em_atendimento: false,
         cliente_nome: null,
         cliente_numero: null,
-        posicao_fila: newPos, // Goes to end
+        posicao_fila: newPos, // Goes to end of queue
         inicio_atendimento: null,
         fim_atendimento: null
       });
-      // No need to reindex others when adding to end
     }
 
     // Apply Updates
-    // Optimistic
+    // Optimistic Update
     const updatesMap = new Map(updatesToBatch.map(u => [u.id, u]));
     const updatedState = agents.map(a => {
       if (updatesMap.has(a.id)) return { ...a, ...updatesMap.get(a.id) };
@@ -430,7 +425,7 @@ function App() {
   // (Para não sumirem da tela quando desativa o toggle)
   const pausedAgents = agents
     .filter(a => a.status === false && !a.em_atendimento)
-    .sort((a, b) => a.id - b.id); // Ordenação padrão por ID ou Nome
+    .sort((a, b) => a.id - b.id); // Ordenação padrão por ID
 
   return (
     <div className="min-h-screen pb-20 bg-slate-100 dark:bg-slate-900 transition-colors duration-200">

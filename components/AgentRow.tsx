@@ -86,7 +86,9 @@ export const AgentRow: React.FC<AgentRowProps> = ({
         
         <div className="flex flex-col items-center justify-center min-w-[2.5rem]">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Pos</span>
-          <span className="text-xl font-black text-slate-700 dark:text-slate-200">#{agent.posicao_fila}</span>
+          <span className="text-xl font-black text-slate-700 dark:text-slate-200">
+            {isBusy ? '0' : (agent.status ? `#${agent.posicao_fila}` : '-')}
+          </span>
         </div>
       </div>
 
@@ -108,7 +110,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
               </span>
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-sm font-bold mt-1">
                 <span className="flex items-center gap-1">
-                  <User size={14} className="opacity-75"/> {agent.cliente_nome}
+                  <User size={14} className="opacity-75"/> {agent.cliente_nome || 'Cliente não identificado'}
                 </span>
                 <span className="hidden sm:inline opacity-50">•</span>
                 <span className="flex items-center gap-1 font-mono opacity-80">
@@ -140,7 +142,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
                   </span>
                 )}
                 <span className="text-xs text-slate-400 dark:text-slate-500 font-medium hidden sm:inline">
-                  {agent.status ? 'Aguardando próximo cliente...' : 'Pausa / Fora de serviço'}
+                  {agent.status ? 'Aguardando...' : 'Pausa / Fora de serviço'}
                 </span>
              </div>
           </div>
