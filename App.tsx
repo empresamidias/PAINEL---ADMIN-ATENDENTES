@@ -334,6 +334,13 @@ function App() {
   const handleFinishAttendance = async (id: number) => {
     // Return to end of queue
     const newPos = getNextQueuePosition(agents);
+    const agent = agents.find(a => a.id === id);
+    const clientNumber = agent?.cliente_numero;
+
+    // Formata a data atual para YYYY-MM-DD HH:mm:ss (Horário Local)
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const formattedDate = (new Date(now.getTime() - offset)).toISOString().slice(0, 19).replace('T', ' ');
 
     const updates = {
       status: true,
@@ -342,7 +349,7 @@ function App() {
       cliente_numero: null,
       posicao_fila: newPos,
       inicio_atendimento: null,
-      fim_atendimento: new Date().toISOString()
+      fim_atendimento: formattedDate
     };
 
     // Optimistic
@@ -352,7 +359,29 @@ function App() {
 
     const supabase = getSupabase();
     if (supabase) {
+      // 1. Atualizar o atendente (Liberar)
       await supabase.from('atendentes').update(updates).eq('id', id);
+
+      // 2. Atualizar tabela leads_whatsapp se houver número do cliente
+   if (clientNumber) {
+  const { error } = await supabase
+    .from('leads_whatsapp')
+    .update({ 
+      atendimento: 0,
+      nome_atendente: null,
+      em_atendimento: null,
+      avisos_atendimento: 0
+    })
+    .eq('numero', clientNumber);
+  
+  if (error) {
+    console.error("Erro ao atualizar leads_whatsapp:", error);
+    // Opcional: addToast('error', 'Erro ao liberar lead');
+  } else {
+    console.log(`Lead ${clientNumber} liberado (atendimento=0, nome_atendente=null, em_atendimento=null)`);
+  }
+}
+
     }
   };
 
