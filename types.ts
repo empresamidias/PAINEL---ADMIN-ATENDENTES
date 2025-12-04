@@ -9,6 +9,7 @@ export interface Agent {
   posicao_fila: number;
   inicio_atendimento: string | null; // ISO Date String
   fim_atendimento: string | null; // ISO Date String
+  avisos: number; // Quantidade de alertas/avisos
 }
 
 export interface SupabaseCredentials {

@@ -129,7 +129,7 @@ function App() {
     if (isAuthenticated) fetchAgents();
   }, [isAuthenticated, fetchAgents]);
 
-  // --- Realtime Subscription ---
+  // --- Realtime Subscription & Auto-Clean Alerts ---
   useEffect(() => {
     if (!isAuthenticated) return;
     const supabase = getSupabase();
@@ -158,6 +158,29 @@ function App() {
       supabase.removeChannel(channel);
     };
   }, [isAuthenticated]);
+
+  // Monitor agents for "Em Atendimento" with "Avisos" and clear them automatically
+  useEffect(() => {
+    const agentsToClear = agents.filter(a => a.em_atendimento === true && (a.avisos || 0) > 0);
+    
+    if (agentsToClear.length > 0) {
+      const supabase = getSupabase();
+      if (supabase) {
+        // Optimistic update local state to prevent loop
+        setAgents(prev => prev.map(a => {
+           if (a.em_atendimento === true && (a.avisos || 0) > 0) {
+             return { ...a, avisos: 0 };
+           }
+           return a;
+        }));
+
+        // Batch update DB
+        agentsToClear.forEach(async (agent) => {
+           await supabase.from('atendentes').update({ avisos: 0 }).eq('id', agent.id);
+        });
+      }
+    }
+  }, [agents]);
 
   // --- Helpers ---
   
@@ -216,7 +239,8 @@ function App() {
         cliente_nome: null,
         cliente_numero: null,
         inicio_atendimento: null,
-        fim_atendimento: null
+        fim_atendimento: null,
+        avisos: 0
       };
       if (supabase) await supabase.from('atendentes').insert([newAgent]);
     }
@@ -349,7 +373,8 @@ function App() {
       cliente_numero: null,
       posicao_fila: newPos,
       inicio_atendimento: null,
-      fim_atendimento: formattedDate
+      fim_atendimento: formattedDate,
+      avisos: 0 // Resetar avisos ao finalizar também por garantia
     };
 
     // Optimistic
@@ -363,25 +388,23 @@ function App() {
       await supabase.from('atendentes').update(updates).eq('id', id);
 
       // 2. Atualizar tabela leads_whatsapp se houver número do cliente
-   if (clientNumber) {
-  const { error } = await supabase
-    .from('leads_whatsapp')
-    .update({ 
-      atendimento: 0,
-      nome_atendente: null,
-      em_atendimento: null,
-      avisos_atendimento: 0
-    })
-    .eq('numero', clientNumber);
-  
-  if (error) {
-    console.error("Erro ao atualizar leads_whatsapp:", error);
-    // Opcional: addToast('error', 'Erro ao liberar lead');
-  } else {
-    console.log(`Lead ${clientNumber} liberado (atendimento=0, nome_atendente=null, em_atendimento=null)`);
-  }
-}
-
+      if (clientNumber) {
+        const { error } = await supabase
+          .from('leads_whatsapp')
+          .update({ 
+            atendimento: 0,
+            nome_atendente: null,
+            em_atendimento: null,
+            avisos_atendimento: 0
+          })
+          .eq('numero', clientNumber);
+        
+        if (error) {
+          console.error("Erro ao atualizar leads_whatsapp:", error);
+        } else {
+          console.log(`Lead ${clientNumber} liberado`);
+        }
+      }
     }
   };
 
@@ -427,7 +450,8 @@ function App() {
            cliente_numero: a.cliente_numero,
            posicao_fila: a.posicao_fila,
            inicio_atendimento: a.inicio_atendimento,
-           fim_atendimento: a.fim_atendimento
+           fim_atendimento: a.fim_atendimento,
+           avisos: a.avisos
         }));
         await supabase.from('atendentes').upsert(updates, { onConflict: 'id' });
       }

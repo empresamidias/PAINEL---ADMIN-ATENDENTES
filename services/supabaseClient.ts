@@ -39,7 +39,8 @@ export const mockDb = {
         cliente_numero: null, 
         posicao_fila: 0,
         inicio_atendimento: null,
-        fim_atendimento: null
+        fim_atendimento: null,
+        avisos: 0
       },
       { 
         id: 2, 
@@ -51,7 +52,8 @@ export const mockDb = {
         cliente_numero: '(11) 99999-8888', 
         posicao_fila: 1,
         inicio_atendimento: new Date().toISOString(),
-        fim_atendimento: null
+        fim_atendimento: null,
+        avisos: 2
       },
     ];
     localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(initial));

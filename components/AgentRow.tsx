@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Edit2, User, Phone, Lock, Square } from 'lucide-react';
+import { GripVertical, Trash2, Edit2, User, Phone, Lock, Square, BellRing } from 'lucide-react';
 import { Agent } from '../types';
 import { Switch } from './ui/Switch';
 
@@ -26,6 +26,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 }) => {
   const isBusy = agent.em_atendimento; // True if handling a client
   const isAvailable = agent.status && !isBusy; // True if waiting
+  const hasWarnings = isAvailable && (agent.avisos || 0) > 0;
   
   // Drag is only allowed if the agent is fully available (Status True AND Not Busy)
   const isDraggable = isAvailable;
@@ -131,7 +132,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-3 flex-wrap">
                 {agent.status ? (
                   <span className="px-2.5 py-1 rounded-md text-xs font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 uppercase tracking-wider border border-emerald-200 dark:border-emerald-800">
                     Disponível
@@ -144,6 +145,16 @@ export const AgentRow: React.FC<AgentRowProps> = ({
                 <span className="text-xs text-slate-400 dark:text-slate-500 font-medium hidden sm:inline">
                   {agent.status ? 'Aguardando...' : 'Pausa / Fora de serviço'}
                 </span>
+
+                {/* Aviso Pulsante */}
+                {hasWarnings && (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full border border-red-200 dark:border-red-800 animate-pulse ml-2">
+                    <BellRing size={12} className="animate-bounce" />
+                    <span className="text-[10px] font-bold uppercase tracking-wide">
+                      {agent.avisos} {agent.avisos > 1 ? 'Avisos' : 'Aviso'}
+                    </span>
+                  </div>
+                )}
              </div>
           </div>
         )}
