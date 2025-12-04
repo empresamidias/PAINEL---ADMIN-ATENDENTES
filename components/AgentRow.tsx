@@ -26,7 +26,12 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 }) => {
   const isBusy = agent.em_atendimento; // True if handling a client
   const isAvailable = agent.status && !isBusy; // True if waiting
-  const hasWarnings = isAvailable && (agent.avisos || 0) > 0;
+  
+  // Warning Logic
+  const warningCount = agent.avisos || 0;
+  const hasWarnings = isAvailable && warningCount > 0;
+  const isWarningMedium = isAvailable && warningCount >= 1 && warningCount <= 3;
+  const isWarningCritical = isAvailable && warningCount >= 4;
   
   // Drag is only allowed if the agent is fully available (Status True AND Not Busy)
   const isDraggable = isAvailable;
@@ -51,10 +56,27 @@ export const AgentRow: React.FC<AgentRowProps> = ({
   };
 
   // Visual Styles based on state
+  // Agora controlamos a cor da borda TOTAL (border-color) e da lateral (border-l-color) aqui
   const getContainerStyles = () => {
-    if (isBusy) return 'bg-red-50 dark:bg-red-900/10 border-l-red-500 shadow-sm';
-    if (isAvailable) return 'bg-white dark:bg-slate-800 border-l-emerald-500 shadow-sm';
-    return 'bg-slate-100 dark:bg-slate-800/50 border-l-slate-400 dark:border-l-slate-600 opacity-75'; // Unavailable/Paused
+    if (isBusy) {
+      return 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900 border-l-red-500 shadow-sm';
+    }
+    
+    if (isAvailable) {
+      if (isWarningCritical) {
+        // Critical: Red border everywhere
+        return 'bg-white dark:bg-slate-800 border-red-500 dark:border-red-600 border-l-red-600 shadow-md shadow-red-100 dark:shadow-none';
+      }
+      if (isWarningMedium) {
+        // Medium: Amber border everywhere
+        return 'bg-white dark:bg-slate-800 border-amber-400 dark:border-amber-500 border-l-amber-500 shadow-sm';
+      }
+      // Default Available
+      return 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 border-l-emerald-500 shadow-sm';
+    }
+
+    // Unavailable/Paused
+    return 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 border-l-slate-400 dark:border-l-slate-600 opacity-75';
   };
 
   return (
@@ -62,7 +84,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
       ref={setNodeRef}
       style={style}
       className={`
-        relative flex flex-col md:flex-row md:items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 border-l-4
+        relative flex flex-col md:flex-row md:items-center gap-3 p-4 rounded-lg border border-l-4
         ${getContainerStyles()}
         ${isOverlay ? 'shadow-xl scale-105' : ''}
         transition-all duration-200
@@ -148,10 +170,16 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 
                 {/* Aviso Pulsante */}
                 {hasWarnings && (
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full border border-red-200 dark:border-red-800 animate-pulse ml-2">
+                  <div className={`
+                    flex items-center gap-1.5 px-2 py-0.5 rounded-full animate-pulse ml-2 border
+                    ${isWarningCritical 
+                      ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800' 
+                      : 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                    }
+                  `}>
                     <BellRing size={12} className="animate-bounce" />
                     <span className="text-[10px] font-bold uppercase tracking-wide">
-                      {agent.avisos} {agent.avisos > 1 ? 'Avisos' : 'Aviso'}
+                      {warningCount} {warningCount > 1 ? 'Avisos' : 'Aviso'}
                     </span>
                   </div>
                 )}
